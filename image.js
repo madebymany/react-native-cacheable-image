@@ -23,8 +23,12 @@ class CacheableImage extends React.Component {
     };
 
     componentWillReceiveProps(nextProps) {
-        if (nextProps.source != this.props.source) {
-            this._processSource(nextProps.source);
+        if (
+            nextProps.source != this.props.source ||
+            nextProps.cachePath != this.props.cachePath ||
+            nextProps.cacheKey != this.props.cacheKey
+        ) {
+            this._processSource(nextProps.source, nextProps.cachePath, nextProps.cacheKey);
         }
     }
 
@@ -51,6 +55,9 @@ class CacheableImage extends React.Component {
             }
         })
         .catch((err) => {
+
+            if (!imageUri) { return; }
+
             // means file does not exist
             // first make sure directory exists.. then begin download
             // The NSURLIsExcludedFromBackupKey property can be provided to set this attribute on iOS platforms.
@@ -97,16 +104,20 @@ class CacheableImage extends React.Component {
         });
     }
 
-    _processSource(source) {
+    _processSource(source, cachePath, cacheKey) {
         if (source !== null
             && typeof source === "object"
             && source.hasOwnProperty('uri'))
         { // remote
             const url = new URL(source.uri);
             const type = url.pathname.replace(/.*\.(.*)/, '$1');
-            const cacheKey = SHA1(url.pathname)+'.'+type;
-
-            this.checkImageCache(source.uri, url.host, cacheKey);
+            const _cachePath = cachePath || url.host;
+            let _cacheKey = SHA1(url.pathname)+'.'+type;
+            if (cacheKey) {
+                _cacheKey = SHA1(cacheKey) + '.' + cacheKey.replace(/.*\.(.*)/, '$1');
+            }
+            
+            this.checkImageCache(source.uri, _cachePath, _cacheKey);
             this.setState({isRemote: true});
         }
         else {
@@ -115,7 +126,7 @@ class CacheableImage extends React.Component {
     }
 
     componentWillMount() {
-        this._processSource(this.props.source);
+        this._processSource(this.props.source, this.props.cachePath, this.props.cacheKey);
     }
 
     componentWillUnmount() {
